@@ -18,7 +18,7 @@ func main() {
 
 	port := configs.GetEnv("PORT", "8000")
 
-	r := routers.NewRouter()
+	r := routers.Init()
 
 	log.Println("Starting server on:", port)
 	log.Fatal(http.ListenAndServe(":"+port, r))

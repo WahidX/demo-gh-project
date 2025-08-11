@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"ghp-copilot/internal/llm"
-	"ghp-copilot/pkg/githubapi"
 	"log"
 	"net/http"
 
@@ -16,14 +15,14 @@ func (h Handlers) GeneratePRSummary(w http.ResponseWriter, r *http.Request) {
 	repo := chi.URLParam(r, "repo")
 	prNumber := chi.URLParam(r, "prNumber")
 
-	pr, err := githubapi.GetPullRequest(r.Context(), owner, repo, prNumber)
+	pr, err := h.GithubApis.GetPullRequest(r.Context(), owner, repo, prNumber)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	log.Println("pr: ", pr)
 
-	files, err := githubapi.GetPullRequestFiles(r.Context(), owner, repo, prNumber)
+	files, err := h.GithubApis.GetPullRequestFiles(r.Context(), owner, repo, prNumber)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

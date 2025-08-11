@@ -3,10 +3,10 @@ package llm
 import (
 	"context"
 	"fmt"
-	"ghp-copilot/pkg/githubapi"
+	"ghp-copilot/internal/types"
 )
 
-func SummarizePRChanges(ctx context.Context, prTitle, prBody string, files []githubapi.PRFile) (string, error) {
+func SummarizePRChanges(ctx context.Context, prTitle, prBody string, files []types.PRFile) (string, error) {
 	prompt := fmt.Sprintf(`
 You are an expert code reviewer. Summarize the following GitHub Pull Request in a crisp, structured, and easy-to-grasp way. Your audience is a person who knows little bit coding. So you have to tell What the author is changing in each file logically. Use bullet points, tables, or other clear structures. Avoid long paragraphs. Highlight key changes per affected files and any important context. Don't just tell that lines added or deleted.
 PR Title: %s
