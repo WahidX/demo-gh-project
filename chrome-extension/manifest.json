@@ -1,0 +1,20 @@
+{
+  "manifest_version": 3,
+  "name": "GitHub PR Summarizer",
+  "version": "1.0.0",
+  "description": "Summarize GitHub PRs and interact with backend AI services.",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["https://github.com/*"],
+  "background": {
+    "service_worker": "service_worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://github.com/*/pull/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "side_panel": {
+    "default_path": "sidebar.html"
+  }
+}
