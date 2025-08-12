@@ -16,7 +16,7 @@ func main() {
 
 	llm.Init()
 
-	port := configs.GetEnv("PORT", "8000")
+	port := configs.GetEnv("PORT", "8080")
 
 	r := routers.Init()
 
