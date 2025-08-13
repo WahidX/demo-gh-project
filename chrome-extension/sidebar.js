@@ -88,6 +88,7 @@ class SidebarApp {
 	async handlePRSummary() {
 		this.loading = true;
 		this.addMessage('user', 'Generate PR summary');
+		this.addMessage('assistant', 'Composing...');
 		this.render();
 
 		if (!this.prInfo) {
@@ -105,8 +106,11 @@ class SidebarApp {
 			const res = await fetch(`http://localhost:8000/pr-summary/${owner}/${repo}/${prNumber}`);
 			const data = await res.json();
 			console.log('PR Summary API response:', data);
-			this.addMessage('assistant', data.summary || 'No summary.');
+			// Remove all 'Model is thinking...' messages
+			this.chat = this.chat.filter((m) => m.text !== 'Model is thinking...');
+			this.addMessage('assistant', data.message || 'No summary.');
 		} catch (error) {
+			this.chat = this.chat.filter((m) => m.text !== 'Model is thinking...');
 			this.addMessage('assistant', 'Error: ' + error.message);
 		}
 
@@ -117,6 +121,7 @@ class SidebarApp {
 	async handleSuggestion(action) {
 		this.loading = true;
 		this.addMessage('user', action);
+		this.addMessage('assistant', 'Composing...');
 		this.render();
 
 		if (!this.prInfo) {
@@ -134,6 +139,8 @@ class SidebarApp {
 			const res = await fetch(`http://localhost:8000/inactive-items/${owner}/${repo}`);
 			const data = await res.json();
 			console.log('Inactive Items API response:', data);
+			// Remove all 'Model is thinking...' messages
+			this.chat = this.chat.filter((m) => m.text !== 'Model is thinking...');
 			if (
 				(Array.isArray(data.pull_requests) && data.pull_requests.length) ||
 				(Array.isArray(data.issues) && data.issues.length)
@@ -162,6 +169,7 @@ class SidebarApp {
 				this.addMessage('assistant', 'No inactive PRs or issues found.');
 			}
 		} catch (error) {
+			this.chat = this.chat.filter((m) => m.text !== 'Model is thinking...');
 			this.addMessage('assistant', 'Error: ' + error.message);
 		}
 
@@ -172,6 +180,7 @@ class SidebarApp {
 	async handleQuery(query) {
 		this.loading = true;
 		this.addMessage('user', query);
+		this.addMessage('assistant', 'Composing...');
 		this.render();
 
 		try {
@@ -182,8 +191,11 @@ class SidebarApp {
 				},
 				body: query,
 			});
-			console.log('Query API response:', res);
-			this.addMessage('assistant', JSON.stringify(res) || 'No result.');
+			const data = await res.json();
+			console.log('Query API response:', data.message);
+			// Remove all 'Model is thinking...' messages
+			this.chat = this.chat.filter((m) => m.text !== 'Model is thinking...');
+			this.addMessage('assistant', data.message || 'No result.');
 		} catch (error) {
 			this.addMessage('assistant', 'Error: ' + error.message);
 		}
@@ -208,42 +220,42 @@ class SidebarApp {
 
 	renderMain() {
 		return `
-				<div class="header">
-					<span style="font-weight: 600;">Token saved</span>
-					<button id="logoutBtn" class="logout-btn">Logout</button>
-				</div>
-				${
-					this.prInfo
-						? `
-					<button id="prSummaryBtn" ${this.loading ? 'disabled' : ''} class="pr-summary-btn">
-						${this.loading ? 'Loading...' : 'Generate PR summary'}
-					</button>
-				`
-						: ''
-				}
-				<div class="chat-container">
-					${this.chat
-						.map(
-							(msg) => `
-						<div class="message ${msg.role}">${msg.text}</div>
-					`,
-						)
-						.join('')}
-				</div>
-				<div class="suggestions">
-					${this.suggestions
-						.map(
-							(s, i) => `
-						<button class="suggestion-btn" data-action="${s.action}" data-idx="${i}">${s.label}</button>
-					`,
-						)
-						.join('')}
-				</div>
-				<form id="queryForm" class="query-form">
-					<input type="text" id="queryInput" class="query-input" placeholder="Ask anything... (e.g. scan repo)">
-					<button type="submit" class="button" style="width: auto;">Send</button>
-				</form>
-			`;
+			<div class="header">
+				<span style="font-weight: 600;">Token saved</span>
+				<button id="logoutBtn" class="logout-btn">Logout</button>
+			</div>
+			${
+				this.prInfo
+					? `
+				<button id="prSummaryBtn" ${this.loading ? 'disabled' : ''} class="pr-summary-btn">
+					${this.loading ? 'Loading...' : 'Generate PR summary'}
+				</button>
+			`
+					: ''
+			}
+			<div class="chat-container">
+				${this.chat
+					.map(
+						(msg) => `
+					<div class="message ${msg.role}">${msg.text}</div>
+				`,
+					)
+					.join('')}
+			</div>
+			<div class="suggestions">
+				${this.suggestions
+					.map(
+						(s, i) => `
+					<button class="suggestion-btn" data-action="${s.action}" data-idx="${i}">${s.label}</button>
+				`,
+					)
+					.join('')}
+			</div>
+			<form id="queryForm" class="query-form">
+				<input type="text" id="queryInput" class="query-input" placeholder="Ask anything... (e.g. scan repo)">
+				<button type="submit" class="button" style="width: auto;">Send</button>
+			</form>
+		`;
 	}
 
 	render() {

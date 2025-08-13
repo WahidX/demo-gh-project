@@ -21,9 +21,9 @@ func (h Handlers) Query(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := llm.BaseQuery(r.Context(), string(queryBytes))
 	if err != nil {
-		SendResponse(w, map[string]any{"response": err}, http.StatusInternalServerError)
+		SendResponse(w, map[string]any{"message": err}, http.StatusInternalServerError)
 		return
 	}
 
-	SendResponse(w, map[string]any{"response": resp}, http.StatusOK)
+	SendResponse(w, map[string]any{"message": resp}, http.StatusOK)
 }

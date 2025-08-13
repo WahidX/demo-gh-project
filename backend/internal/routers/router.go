@@ -15,7 +15,7 @@ func Init() *chi.Mux {
 		GithubApis: githubapi.Init(),
 	}
 
-	r.Use(middleware.Logger)
+	r.Use(middleware.Logger, middleware.RequestID, middleware.Recoverer)
 
 	// Add CORS middleware
 	r.Use(cors.Handler(cors.Options{
