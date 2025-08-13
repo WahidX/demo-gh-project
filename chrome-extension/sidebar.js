@@ -28,10 +28,19 @@ class SidebarApp {
 
 	async getCurrentUrl() {
 		return new Promise((resolve) => {
+			// Try to get the URL from the content script
 			chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-				this.currentUrl = tabs[0]?.url || '';
-				this.prInfo = this.extractPRInfoFromUrl(this.currentUrl);
-				resolve();
+				if (tabs[0]?.id) {
+					chrome.tabs.sendMessage(tabs[0].id, { type: 'GET_PAGE_URL' }, (response) => {
+						this.currentUrl = response?.url || '';
+						this.prInfo = this.extractPRInfoFromUrl(this.currentUrl);
+						resolve();
+					});
+				} else {
+					this.currentUrl = '';
+					this.prInfo = null;
+					resolve();
+				}
 			});
 		});
 	}
@@ -81,19 +90,21 @@ class SidebarApp {
 		this.addMessage('user', 'Generate PR summary');
 		this.render();
 
-		if (!this.prInfo) return;
-
+		if (!this.prInfo) {
+			this.addMessage(
+				'assistant',
+				'Could not detect PR info from the current page URL. Please open a GitHub PR page.',
+			);
+			this.loading = false;
+			this.render();
+			return;
+		}
 		const { owner, repo, prNumber } = this.prInfo;
+		console.log('PR Summary API call:', owner, repo, prNumber);
 		try {
-			const res = await fetch('http://localhost:8080/summarize-pr', {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${this.token}`,
-				},
-				body: JSON.stringify({ owner, repo, prNumber }),
-			});
+			const res = await fetch(`http://localhost:8000/pr-summary/${owner}/${repo}/${prNumber}`);
 			const data = await res.json();
+			console.log('PR Summary API response:', data);
 			this.addMessage('assistant', data.summary || 'No summary.');
 		} catch (error) {
 			this.addMessage('assistant', 'Error: ' + error.message);
@@ -108,17 +119,48 @@ class SidebarApp {
 		this.addMessage('user', action);
 		this.render();
 
+		if (!this.prInfo) {
+			this.addMessage(
+				'assistant',
+				'Could not detect repo info from the current page URL. Please open a GitHub PR or repo page.',
+			);
+			this.loading = false;
+			this.render();
+			return;
+		}
+		const { owner, repo } = this.prInfo;
+		console.log('Inactive Items API call:', owner, repo);
 		try {
-			const res = await fetch(`http://localhost:8080/${action}`, {
-				method: 'POST',
-				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${this.token}`,
-				},
-				body: JSON.stringify({}),
-			});
+			const res = await fetch(`http://localhost:8000/inactive-items/${owner}/${repo}`);
 			const data = await res.json();
-			this.addMessage('assistant', data.result || 'No result.');
+			console.log('Inactive Items API response:', data);
+			if (
+				(Array.isArray(data.pull_requests) && data.pull_requests.length) ||
+				(Array.isArray(data.issues) && data.issues.length)
+			) {
+				let msg = '';
+				if (Array.isArray(data.pull_requests) && data.pull_requests.length) {
+					msg += `Inactive PRs (${data.pull_requests.length}):\n`;
+					data.pull_requests.forEach((pr) => {
+						console.log('PR:', pr, 'number:', pr.number, 'title:', pr.title);
+						msg += `- #${String(pr.number)}: ${String(pr.title)} (idle ${String(
+							pr.daysIdle || pr.DaysIdle || '?',
+						)} days)\n`;
+					});
+				}
+				if (Array.isArray(data.issues) && data.issues.length) {
+					msg += `Inactive Issues (${data.issues.length}):\n`;
+					data.issues.forEach((issue) => {
+						console.log('Issue:', issue, 'number:', issue.number, 'title:', issue.title);
+						msg += `- #${String(issue.number)}: ${String(issue.title)} (idle ${String(
+							issue.daysIdle || issue.DaysIdle || '?',
+						)} days)\n`;
+					});
+				}
+				this.addMessage('assistant', msg);
+			} else {
+				this.addMessage('assistant', 'No inactive PRs or issues found.');
+			}
 		} catch (error) {
 			this.addMessage('assistant', 'Error: ' + error.message);
 		}
@@ -133,16 +175,15 @@ class SidebarApp {
 		this.render();
 
 		try {
-			const res = await fetch('http://localhost:8080/query', {
+			const res = await fetch('http://localhost:8000/query', {
 				method: 'POST',
 				headers: {
-					'Content-Type': 'application/json',
-					'Authorization': `Bearer ${this.token}`,
+					'Content-Type': 'text/plain',
 				},
-				body: JSON.stringify({ query }),
+				body: query,
 			});
-			const data = await res.json();
-			this.addMessage('assistant', data.result || 'No result.');
+			console.log('Query API response:', res);
+			this.addMessage('assistant', JSON.stringify(res) || 'No result.');
 		} catch (error) {
 			this.addMessage('assistant', 'Error: ' + error.message);
 		}
@@ -246,6 +287,11 @@ class SidebarApp {
 					this.handleQuery(queryInput.value);
 					queryInput.value = '';
 				});
+			}
+			// Scroll chat to bottom
+			const chatContainer = document.querySelector('.chat-container');
+			if (chatContainer) {
+				chatContainer.scrollTop = chatContainer.scrollHeight;
 			}
 		}
 	}
